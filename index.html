@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Personal health tracker for calories, activities, weight, height, age and BMI.">
+  <title>Health Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-mark">+</div>
+        <div>
+          <strong>Health Tracker</strong>
+          <span>Personal wellness dashboard</span>
+        </div>
+      </div>
+      <nav>
+        <button class="nav-item active" data-view="dashboard">Overview</button>
+        <button class="nav-item" data-view="daily">Daily Log</button>
+        <button class="nav-item" data-view="baseline">Baseline</button>
+        <button class="nav-item" data-view="history">History</button>
+        <button class="nav-item" data-view="settings">Data</button>
+      </nav>
+      <div class="sidebar-note">
+        <span class="dot"></span>
+        Your data is stored locally in this browser.
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PERSONAL HEALTH</p>
+          <h1 id="pageTitle">Overview</h1>
+        </div>
+        <div class="date-pill" id="todayLabel"></div>
+      </header>
+
+      <section id="dashboard" class="view active">
+        <div class="hero">
+          <div>
+            <p class="eyebrow">TODAY</p>
+            <h2>Build a clearer picture of your progress.</h2>
+            <p class="muted">Log calories, movement and weight in one place, then use the trends to understand your routine.</p>
+          </div>
+          <button class="primary" data-go="daily">+ Log today</button>
+        </div>
+
+        <div class="stats-grid">
+          <article class="stat-card">
+            <span>Calories</span>
+            <strong id="dashCalories">0</strong>
+            <small>kcal consumed today</small>
+          </article>
+          <article class="stat-card">
+            <span>Activity</span>
+            <strong id="dashActivity">0</strong>
+            <small>minutes today</small>
+          </article>
+          <article class="stat-card">
+            <span>Weight</span>
+            <strong id="dashWeight">—</strong>
+            <small id="dashWeightUnit">current measurement</small>
+          </article>
+          <article class="stat-card">
+            <span>BMI</span>
+            <strong id="dashBMI">—</strong>
+            <small id="dashBMIStatus">baseline</small>
+          </article>
+        </div>
+
+        <div class="two-col">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">CALORIES</p>
+                <h3>7-day intake</h3>
+              </div>
+              <span class="legend">kcal</span>
+            </div>
+            <div class="chart-wrap"><canvas id="calorieChart" height="220"></canvas></div>
+          </article>
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">WEIGHT</p>
+                <h3>Recent trend</h3>
+              </div>
+              <span class="legend" id="weightChartUnit">kg</span>
+            </div>
+            <div class="chart-wrap"><canvas id="weightChart" height="220"></canvas></div>
+          </article>
+        </div>
+
+        <article class="panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">RECENT ACTIVITY</p>
+              <h3>Latest entries</h3>
+            </div>
+            <button class="text-btn" data-view-target="history">View all →</button>
+          </div>
+          <div id="recentActivity" class="activity-list"></div>
+        </article>
+      </section>
+
+      <section id="daily" class="view">
+        <div class="section-intro">
+          <p class="eyebrow">DAILY LOG</p>
+          <h2>Record today's numbers.</h2>
+          <p class="muted">You can update the same date more than once; the latest entry for that date is kept.</p>
+        </div>
+        <form id="dailyForm" class="panel form-grid">
+          <label>Date<input id="logDate" type="date" required></label>
+          <label>Calories consumed (kcal)<input id="calories" type="number" min="0" step="1" placeholder="e.g. 2100"></label>
+          <label>Exercise (minutes)<input id="exerciseMinutes" type="number" min="0" step="1" placeholder="e.g. 45"></label>
+          <label>Activity calories (kcal)<input id="activeCalories" type="number" min="0" step="1" placeholder="e.g. 320"></label>
+          <label>Steps<input id="steps" type="number" min="0" step="1" placeholder="e.g. 8500"></label>
+          <label>Weight (kg)<input id="dailyWeight" type="number" min="0" step="0.1" placeholder="e.g. 72.5"></label>
+          <label class="wide">Activity type<input id="activityType" type="text" maxlength="80" placeholder="e.g. Walking, running, strength training"></label>
+          <label class="wide">Notes<textarea id="notes" rows="3" maxlength="500" placeholder="Optional notes about meals, training or how the day went"></textarea></label>
+          <div class="form-actions wide">
+            <button type="button" class="secondary" id="clearDaily">Clear</button>
+            <button type="submit" class="primary">Save daily log</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="baseline" class="view">
+        <div class="section-intro">
+          <p class="eyebrow">BASELINE PROFILE</p>
+          <h2>Set your starting measurements.</h2>
+          <p class="muted">These values give the tracker context for your progress. BMI is calculated automatically from height and weight.</p>
+        </div>
+        <form id="baselineForm" class="panel form-grid">
+          <label>Baseline date<input id="baselineDate" type="date" required></label>
+          <label>Age<input id="age" type="number" min="1" max="120" placeholder="e.g. 30"></label>
+          <label>Height (cm)<input id="height" type="number" min="50" max="250" step="0.1" placeholder="e.g. 175"></label>
+          <label>Weight (kg)<input id="weight" type="number" min="20" max="500" step="0.1" placeholder="e.g. 72.5"></label>
+          <label>Baseline BMI<input id="bmi" type="number" min="5" max="100" step="0.1" placeholder="Calculated automatically"></label>
+          <label>Daily calorie target (kcal)<input id="calorieTarget" type="number" min="0" step="1" placeholder="Optional"></label>
+          <div id="bmiPreview" class="bmi-preview wide">Enter height and weight to calculate BMI.</div>
+          <div class="form-actions wide">
+            <button type="submit" class="primary">Save baseline</button>
+          </div>
+        </form>
+      </section>
+
+      <section id="history" class="view">
+        <div class="section-intro row-between">
+          <div>
+            <p class="eyebrow">HISTORY</p>
+            <h2>Your daily record.</h2>
+            <p class="muted">Edit or delete individual days as needed.</p>
+          </div>
+          <div class="filters">
+            <input id="historySearch" type="search" placeholder="Search date or activity">
+          </div>
+        </div>
+        <article class="panel table-panel">
+          <div class="table-scroll">
+            <table>
+              <thead>
+                <tr><th>Date</th><th>Calories</th><th>Exercise</th><th>Active kcal</th><th>Weight</th><th>Activity</th><th></th></tr>
+              </thead>
+              <tbody id="historyBody"></tbody>
+            </table>
+          </div>
+          <div id="emptyHistory" class="empty">No daily entries yet.</div>
+        </article>
+      </section>
+
+      <section id="settings" class="view">
+        <div class="section-intro">
+          <p class="eyebrow">DATA</p>
+          <h2>Manage your tracker data.</h2>
+          <p class="muted">Export a backup or import one later. Data never needs to leave this browser unless you choose to export it.</p>
+        </div>
+        <div class="two-col">
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">BACKUP</p><h3>Export data</h3></div></div>
+            <p class="muted">Download your baseline and daily logs as a JSON file.</p>
+            <button id="exportData" class="primary">Export JSON</button>
+          </article>
+          <article class="panel">
+            <div class="panel-head"><div><p class="eyebrow">RESTORE</p><h3>Import data</h3></div></div>
+            <p class="muted">Restore a JSON backup created by this tracker.</p>
+            <input id="importData" type="file" accept=".json,application/json">
+          </article>
+        </div>
+        <article class="panel danger-panel">
+          <div>
+            <p class="eyebrow">RESET</p>
+            <h3>Clear all data</h3>
+            <p class="muted">This permanently removes the baseline and all daily entries from this browser.</p>
+          </div>
+          <button id="resetData" class="danger">Clear all data</button>
+        </article>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
