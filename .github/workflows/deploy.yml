@@ -1,0 +1,49 @@
+name: Validate and deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  smoke-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Boot the app and check it responds
+        run: |
+          streamlit run app.py --server.headless true --server.port 8501 &
+          APP_PID=$!
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8501/_stcore/health > /dev/null; then
+              echo "App is up"
+              kill $APP_PID
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "App did not become healthy in time"
+          kill $APP_PID
+          exit 1
+
+  trigger-deploy:
+    needs: smoke-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Streamlit Community Cloud redeploy
+        if: ${{ secrets.STREAMLIT_DEPLOY_HOOK != '' }}
+        run: curl -sf -X POST "${{ secrets.STREAMLIT_DEPLOY_HOOK }}"
+
+      - name: No deploy hook configured
+        if: ${{ secrets.STREAMLIT_DEPLOY_HOOK == '' }}
+        run: |
+          echo "No STREAMLIT_DEPLOY_HOOK secret set."
+          echo "Streamlit Community Cloud redeploys automatically on push once the repo is connected at share.streamlit.io — see README."
