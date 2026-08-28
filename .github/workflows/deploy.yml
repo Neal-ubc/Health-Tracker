@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: your-app-name  # TODO: set to your Azure Web App's name
+  AZURE_WEBAPP_NAME: health-tracker-neal  # TODO: set to your Azure Web App's name
 
 jobs:
   smoke-test:
