@@ -48,17 +48,39 @@ This repo deploys to an [Azure Web App](https://learn.microsoft.com/azure/app-se
 
 1. Create a Web App in the Azure Portal: **App Service** → **Create** →
    pick **Linux** and the **Python 3.11** runtime stack.
-2. Set the startup command so Azure knows how to launch Streamlit:
-   **Configuration → General settings → Startup Command**:
-   ```
-   python -m streamlit run app.py --server.port 8000 --server.address 0.0.0.0
-   ```
-3. Download the app's publish profile: **Overview → Get publish profile**.
-4. In this GitHub repo, add that file's contents as a secret named
+2. Download the app's publish profile: **Overview → Get publish profile**.
+3. In this GitHub repo, add that file's contents as a secret named
    `AZURE_WEBAPP_PUBLISH_PROFILE` (Settings → Secrets and variables →
    Actions).
-5. In `.github/workflows/deploy.yml`, set `AZURE_WEBAPP_NAME` to your Web
+4. In `.github/workflows/deploy.yml`, set `AZURE_WEBAPP_NAME` to your Web
    App's name.
+5. Create a service principal the workflow can use to configure the app,
+   and add it as a secret named `AZURE_CREDENTIALS`. In
+   [Azure Cloud Shell](https://shell.azure.com) (bash):
+   ```bash
+   SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+   RESOURCE_GROUP=<the resource group your Web App is in>
+
+   az ad sp create-for-rbac \\
+     --name "health-tracker-deploy" \\
+     --role contributor \\
+     --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP" \\
+     > sp.json
+
+   jq -n \\
+     --arg clientId "$(jq -r .appId sp.json)" \\
+     --arg clientSecret "$(jq -r .password sp.json)" \\
+     --arg subscriptionId "$SUBSCRIPTION_ID" \\
+     --arg tenantId "$(jq -r .tenant sp.json)" \\
+     '{clientId:$clientId, clientSecret:$clientSecret, subscriptionId:$subscriptionId, tenantId:$tenantId}'
+   ```
+   Paste the printed JSON as the `AZURE_CREDENTIALS` secret value
+   (Settings → Secrets and variables → Actions).
+
+You do **not** need to set the Startup Command or
+`SCM_DO_BUILD_DURING_DEPLOYMENT` by hand in the Portal — the workflow sets
+both automatically on every deploy (see below), so there's nothing to
+remember or get wrong there.
 
 ### What the included GitHub Action does
 
@@ -67,8 +89,14 @@ This repo deploys to an [Azure Web App](https://learn.microsoft.com/azure/app-se
 1. **Smoke test** — installs dependencies, boots the app headlessly, and
    confirms it responds on its health endpoint. This catches broken code
    *before* it reaches your live app.
-2. **Deploy** — if the smoke test passes, deploys the repo to the Azure
-   Web App named above using the publish profile secret.
+2. **Deploy** — if the smoke test passes:
+   - logs into Azure with the `AZURE_CREDENTIALS` service principal,
+   - re-asserts the Web App's Startup Command
+     (`python -m streamlit run app.py --server.port 8000 --server.address 0.0.0.0`)
+     and the `SCM_DO_BUILD_DURING_DEPLOYMENT=true` app setting (so Azure's
+     Oryx build actually installs `requirements.txt` on deploy — without it
+     the app boots with no dependencies installed),
+   - deploys the repo to the Web App using the publish profile secret.
 
 ## Important limitation: storage on Azure Web App
 
