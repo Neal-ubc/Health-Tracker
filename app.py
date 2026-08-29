@@ -14,14 +14,14 @@ DATA_DIR = os.environ.get("DATA_DIR", "data")
 BASELINE_PATH = os.path.join(DATA_DIR, "baseline.json")
 ENTRIES_PATH = os.path.join(DATA_DIR, "entries.csv")
 
-INK = "#1F3329"
-PAPER = "#F4EFE2"
-PANEL = "#FBF8F0"
+INK = "#1B3A5C"
+PAPER = "#EAF1F8"
+PANEL = "#F5F9FD"
 AMBER = "#C1873C"
 TEAL = "#3F7C6E"
 ROSE = "#B25454"
-BLUE = "#5E86B0"
-MUTE = "#7A7462"
+BLUE = "#4A7FB5"
+MUTE = "#5B7086"
 
 st.set_page_config(page_title="Health ledger", page_icon="📒", layout="centered")
 
