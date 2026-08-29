@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  AZURE_WEBAPP_NAME: health-tracker-neal  # TODO: set to your Azure Web App's name
+  AZURE_WEBAPP_NAME: health-tracker-neal
 
 jobs:
   smoke-test:
@@ -43,41 +43,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Log in to Azure
-        uses: azure/login@v2
-        with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
-
-      # Belt-and-suspenders: the Azure Portal's Configuration UI can be easy
-      # to mis-save or apply to the wrong slot. Re-assert both settings on
-      # every deploy so a wrong click in the Portal can never silently break
-      # the next release.
-      - name: Ensure startup command and build settings are correct
-        run: |
-          RG=$(az webapp list --query "[?name=='${{ env.AZURE_WEBAPP_NAME }}'] | [0].resourceGroup" -o tsv)
-          if [ -z "$RG" ]; then
-            echo "Could not find a Web App named '${{ env.AZURE_WEBAPP_NAME }}' in this subscription/service principal scope." >&2
-            exit 1
-          fi
-          echo "Resource group: $RG"
-
-          az webapp config set \
-            --resource-group "$RG" \
-            --name "${{ env.AZURE_WEBAPP_NAME }}" \
-            --startup-file "python -m streamlit run app.py --server.port 8000 --server.address 0.0.0.0"
-
-          az webapp config appsettings set \
-            --resource-group "$RG" \
-            --name "${{ env.AZURE_WEBAPP_NAME }}" \
-            --settings SCM_DO_BUILD_DURING_DEPLOYMENT=true
-
+      # Startup Command and SCM_DO_BUILD_DURING_DEPLOYMENT are set by hand
+      # in the Azure Portal (see README) rather than automated here — this
+      # account's Azure AD tenant blocks app/service-principal registration,
+      # so azure/login isn't an option. Publish-profile deploy only needs
+      # the Web App's own deployment credentials, which don't require that
+      # permission.
       - name: Deploy to Azure Web App
         uses: azure/webapps-deploy@v3
         with:
           app-name: ${{ env.AZURE_WEBAPP_NAME }}
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           package: .
-
-      - name: Log out of Azure
-        if: always()
-        run: az logout || true

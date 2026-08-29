@@ -48,39 +48,38 @@ This repo deploys to an [Azure Web App](https://learn.microsoft.com/azure/app-se
 
 1. Create a Web App in the Azure Portal: **App Service** → **Create** →
    pick **Linux** and the **Python 3.11** runtime stack.
-2. Download the app's publish profile: **Overview → Get publish profile**.
-3. In this GitHub repo, add that file's contents as a secret named
+2. Set the startup command so Azure knows how to launch Streamlit:
+   **Configuration → General settings → Startup Command**:
+   ```
+   python -m streamlit run app.py --server.port 8000 --server.address 0.0.0.0
+   ```
+   Click **Save** at the top of the page (not just Enter in the field), and
+   wait for the "Successfully updated configuration" notification. Refresh
+   the page afterward and confirm the field still shows the command —
+   Azure Portal's Configuration blade can silently fail to persist a value
+   if you navigate away before the save notification appears.
+3. Also on the **Configuration** page, switch to the **Application
+   settings** tab → **New application setting**:
+   - Name: `SCM_DO_BUILD_DURING_DEPLOYMENT`
+   - Value: `true`
+
+   **Save**, and again confirm it's still listed after a page refresh. This
+   is what makes Azure actually run `pip install -r requirements.txt`
+   during deploy — without it the app starts with no dependencies
+   installed.
+4. Download the app's publish profile: **Overview → Get publish profile**.
+5. In this GitHub repo, add that file's contents as a secret named
    `AZURE_WEBAPP_PUBLISH_PROFILE` (Settings → Secrets and variables →
    Actions).
-4. In `.github/workflows/deploy.yml`, set `AZURE_WEBAPP_NAME` to your Web
+6. In `.github/workflows/deploy.yml`, set `AZURE_WEBAPP_NAME` to your Web
    App's name.
-5. Create a service principal the workflow can use to configure the app,
-   and add it as a secret named `AZURE_CREDENTIALS`. In
-   [Azure Cloud Shell](https://shell.azure.com) (bash):
-   ```bash
-   SUBSCRIPTION_ID=$(az account show --query id -o tsv)
-   RESOURCE_GROUP=<the resource group your Web App is in>
 
-   az ad sp create-for-rbac \\
-     --name "health-tracker-deploy" \\
-     --role contributor \\
-     --scopes "/subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP" \\
-     > sp.json
-
-   jq -n \\
-     --arg clientId "$(jq -r .appId sp.json)" \\
-     --arg clientSecret "$(jq -r .password sp.json)" \\
-     --arg subscriptionId "$SUBSCRIPTION_ID" \\
-     --arg tenantId "$(jq -r .tenant sp.json)" \\
-     '{clientId:$clientId, clientSecret:$clientSecret, subscriptionId:$subscriptionId, tenantId:$tenantId}'
-   ```
-   Paste the printed JSON as the `AZURE_CREDENTIALS` secret value
-   (Settings → Secrets and variables → Actions).
-
-You do **not** need to set the Startup Command or
-`SCM_DO_BUILD_DURING_DEPLOYMENT` by hand in the Portal — the workflow sets
-both automatically on every deploy (see below), so there's nothing to
-remember or get wrong there.
+(An earlier version of this workflow tried to set steps 2–3 automatically
+via a service principal on every deploy, so there was nothing to remember
+in the Portal. That needs Azure AD "register an application" permission,
+which is commonly locked down on university-managed tenants — if you hit
+`Insufficient privileges to complete the operation` creating one, that's
+why. The manual Portal steps above don't need that permission.)
 
 ### What the included GitHub Action does
 
@@ -89,14 +88,8 @@ remember or get wrong there.
 1. **Smoke test** — installs dependencies, boots the app headlessly, and
    confirms it responds on its health endpoint. This catches broken code
    *before* it reaches your live app.
-2. **Deploy** — if the smoke test passes:
-   - logs into Azure with the `AZURE_CREDENTIALS` service principal,
-   - re-asserts the Web App's Startup Command
-     (`python -m streamlit run app.py --server.port 8000 --server.address 0.0.0.0`)
-     and the `SCM_DO_BUILD_DURING_DEPLOYMENT=true` app setting (so Azure's
-     Oryx build actually installs `requirements.txt` on deploy — without it
-     the app boots with no dependencies installed),
-   - deploys the repo to the Web App using the publish profile secret.
+2. **Deploy** — if the smoke test passes, deploys the repo to the Azure
+   Web App named above using the publish profile secret.
 
 ## Important limitation: storage on Azure Web App
 
