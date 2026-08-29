@@ -93,16 +93,22 @@ why. The manual Portal steps above don't need that permission.)
 
 ## Important limitation: storage on Azure Web App
 
-Azure Web App's filesystem is **not guaranteed to persist** across restarts,
-scaling events, or redeploys unless you enable persistent storage, which
-means CSV/JSON files written by the app (`data/entries.csv`,
-`data/baseline.json`) can be lost. This is fine for running locally, but if
-you want your logged data to survive on the hosted version, either turn on
-Azure's persistent storage for the app (`WEBSITES_ENABLE_APP_SERVICE_STORAGE`)
-and point `DATA_DIR` at the persisted `/home` path, or swap the storage layer
-for something external — e.g. Azure Table Storage, a hosted Postgres
-(Azure Database for PostgreSQL, Supabase, Neon), or a Google Sheet. Happy to
-build one of those in if you want durable cloud storage.
+By default the app stores data in a `data/` folder relative to `app.py`
+(`data/entries.csv`, `data/baseline.json`). That's fine locally, but on
+Azure Web App the repo's working directory (`/home/site/wwwroot`) gets
+replaced on every deploy, which would silently wipe that folder each time
+`main` is pushed — separately from Azure's usual filesystem-persistence
+caveats around restarts and scaling.
+
+The app reads its storage location from the `DATA_DIR` environment
+variable (defaults to `data`), so point it somewhere outside the deployed
+code instead: in the Web App's **Environment variables** (App settings),
+add `DATA_DIR` = `/home/data`. Everything under `/home` other than
+`/home/site/wwwroot` persists across both restarts and redeploys, so this
+keeps your logged entries intact. For anything beyond a single-instance
+hobby deployment, an external store (Azure Table Storage, a hosted
+Postgres, a Google Sheet) would still be more robust — happy to build one
+of those in if you want it.
 
 ## Project structure
 

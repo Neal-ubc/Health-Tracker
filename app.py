@@ -6,7 +6,11 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-DATA_DIR = "data"
+# Override with the DATA_DIR environment variable to point at storage that
+# survives redeploys (e.g. "/home/data" on Azure Web App — everything under
+# /home persists across restarts, but a git-based deploy replaces the repo's
+# own working directory each time, which would wipe a relative "data" path).
+DATA_DIR = os.environ.get("DATA_DIR", "data")
 BASELINE_PATH = os.path.join(DATA_DIR, "baseline.json")
 ENTRIES_PATH = os.path.join(DATA_DIR, "entries.csv")
 
@@ -210,7 +214,16 @@ def main():
                 )
                 st.rerun()
 
-        if st.button("Save entry", type="primary"):
+        entry_exists = str(log_date) in st.session_state["entries"]["date"].astype(str).values
+        confirm_overwrite = True
+        if entry_exists:
+            st.warning(f"An entry for {log_date} already exists. Saving will overwrite it.")
+            confirm_overwrite = st.checkbox(
+                f"Overwrite existing entry for {log_date}",
+                key=f"confirm_overwrite_{log_date}",
+            )
+
+        if st.button("Save entry", type="primary", disabled=entry_exists and not confirm_overwrite):
             df = st.session_state["entries"]
             df = df[df["date"] != str(log_date)]
             new_row = pd.DataFrame(
@@ -263,12 +276,24 @@ def main():
                 names = ", ".join(x["name"] for x in exercises)
                 with st.container(border=True):
                     ec1, ec2 = st.columns([4, 1])
-                    ec1.markdown(f"**{row['date']}**")
-                    if ec2.button("Delete", key=f"del_{row['date']}"):
-                        df = df[df["date"] != row["date"]]
-                        save_entries(df)
-                        st.session_state["entries"] = df
-                        st.rerun()
+                    pending_key = f"confirm_delete_{row['date']}"
+                    if st.session_state.get(pending_key):
+                        ec1.markdown(f"**{row['date']}** — delete this entry?")
+                        dcol1, dcol2 = ec2.columns(2)
+                        if dcol1.button("Yes", key=f"confirm_{row['date']}"):
+                            df = df[df["date"] != row["date"]]
+                            save_entries(df)
+                            st.session_state["entries"] = df
+                            st.session_state.pop(pending_key, None)
+                            st.rerun()
+                        if dcol2.button("No", key=f"cancel_{row['date']}"):
+                            st.session_state.pop(pending_key, None)
+                            st.rerun()
+                    else:
+                        ec1.markdown(f"**{row['date']}**")
+                        if ec2.button("Delete", key=f"del_{row['date']}"):
+                            st.session_state[pending_key] = True
+                            st.rerun()
                     parts = []
                     if pd.notna(row["calories"]):
                         parts.append(f"intake **{row['calories']} kcal**")
